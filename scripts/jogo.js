@@ -5,6 +5,15 @@ let frames = 0;
 const hit_sound = new Audio();
 hit_sound.src = './assets/sounds/hit.wav'
 
+const score_sound = new Audio();
+score_sound.src = './assets/sounds/ponto.wav'
+
+const jump_sound = new Audio();
+jump_sound.src = './assets/sounds/pulo.wav'
+
+const fall_sound = new Audio();
+fall_sound.src = './assets/sounds/caiu.wav'
+
 const sprites = new Image();
 sprites.src = './assets/sprites.png';
 
@@ -20,7 +29,6 @@ function createFloor(){
         x: 0,
         y: canvas.height - 112,
         refresh(){
-            console.log('mexeu');
             const floorMovement = 1;
             const repeatIn = this.width/2;
             const movement = this.x - floorMovement;
@@ -134,11 +142,12 @@ function createNewFlappy(){
             
         },
         jump(){
+            jump_sound.play();
             this.speed = -this.jumpHeight;
         },
         refresh(){
             if(hits(flappyBird, globais.floor)){
-                hit_sound.play();
+                fall_sound.play();
                 changeScreen(Screens.start);
                 return
             }
@@ -161,6 +170,94 @@ function createNewFlappy(){
     
 }
 
+//Canos
+function createPipe(){
+    const pipes = {
+        width: 52,
+        height: 400,
+        pipeFloor: {
+            sourceX: 0,
+            sourceY: 169,
+        },
+        pipeSky: {
+            sourceX: 52,
+            sourceY: 169
+        },
+        space: 80,
+        draw(){
+            this.evens.forEach(function(even){
+                const yRandom = even.y;
+                const spaceBetweenPipes = 90;
+
+                //Cano Céu
+                const pipeSkyX = even.x;
+                const pipeSkyY = yRandom;
+                canvasContext.drawImage(
+                    sprites,
+                    pipes.pipeSky.sourceX, pipes.pipeSky.sourceY, //Sprite X, Sprite Y
+                    pipes.width, pipes.height, //Tamanho do recorte na sprite
+                    pipeSkyX, pipeSkyY,
+                    pipes.width, pipes.height,
+                );
+                //Cano Chão
+                const pipeFloorX = even.x;
+                const pipeFloorY = pipes.height + spaceBetweenPipes + yRandom;
+                canvasContext.drawImage(
+                    sprites,
+                    pipes.pipeFloor.sourceX, pipes.pipeFloor.sourceY, //Sprite X, Sprite Y
+                    pipes.width, pipes.height, //Tamanho do recorte na sprite
+                    pipeFloorX, pipeFloorY,
+                    pipes.width, pipes.height,
+                );
+                even.pipeSky = {
+                    x: pipeSkyX,
+                    y: pipes.height + pipeSkyY
+                }
+                even.pipeFloor = {
+                    x: pipeFloorX,
+                    y: pipeFloorY
+                }
+            })
+        },
+        evens: [],
+        collideWithFlappy(even){
+            const flappyHead = globais.flappyBird.y;
+            const flappyFoot = globais.flappyBird.y + globais.flappyBird.height;
+            if(globais.flappyBird.x >= even.x){
+                if(flappyHead <= even.pipeSky.y){
+                    return true;
+                }
+                if(flappyFoot >= even.pipeFloor.y){
+                    return true;
+                }
+                return false;
+            }
+        },
+        refresh(){
+            const is100fps = frames % 100 === 0;
+            if(is100fps){
+                pipes.evens.push({
+                    x: canvas.width,
+                    y: -150 * (Math.random() + 1),
+                })
+            }
+            pipes.evens.forEach(function(even){
+                even.x = even.x -2;
+
+                if(pipes.collideWithFlappy(even)){
+                    hit_sound.play();
+                    changeScreen(Screens.start);
+                    return
+                }
+
+                if(even.x + pipes.width <= 0){
+                    pipes.evens.shift();
+                }
+            })
+        }
+    }
+    return pipes;
+}
 
 //
 //Telas
@@ -180,6 +277,7 @@ const Screens = {
         startGame(){
             globais.flappyBird = createNewFlappy();
             globais.floor = createFloor();
+            globais.pipes = createPipe();
         },
         draw(){
             background.draw();
@@ -198,6 +296,7 @@ const Screens = {
         draw(){
             background.draw();
             globais.flappyBird.draw();
+            globais.pipes.draw();
             globais.floor.draw();
         },
         click(){
@@ -205,6 +304,8 @@ const Screens = {
         },
         refresh(){
             globais.flappyBird.refresh();
+            globais.pipes.refresh();
+            globais.floor.refresh();
         }        
     }
 };
